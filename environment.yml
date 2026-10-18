@@ -1,0 +1,21 @@
+# Build 2 (hybrid-perturb-bench) — milestone 1 isolated environment
+# Written 2026-10-11 from the kickoff plan (proactivity/prepared/2026-10-05/build2-kickoff.md).
+# Milestone 1 only: evaluation contract + three honest baselines on a bounded slice.
+# GEARS and the winners' hybrid come AFTER baselines reproduce.
+name: hybrid-perturb-bench
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scikit-learn
+  - scanpy
+  - anndata
+  - matplotlib
+  - pip
+  - pip:
+      - pertpy            # perturbation data handling + baselines
+      - torch             # cpu wheel; cuda build only if GPU present
+      - cell-eval         # Arc evaluation contract: predicted AnnData + real AnnData
