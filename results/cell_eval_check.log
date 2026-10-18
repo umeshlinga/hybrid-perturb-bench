@@ -1,0 +1,30 @@
+cells: 6039 (control 3000, perts 3039)
+real subset: (6039, 2000)
+Running parallel differential expression (against reference):   0%|          | 0/6 [00:00<?, ?it/s]Running parallel differential expression (against reference):  17%|█▋        | 1/6 [00:06<00:32,  6.48s/it]Running parallel differential expression (against reference):  33%|███▎      | 2/6 [00:06<00:11,  2.92s/it]Running parallel differential expression (against reference):  50%|█████     | 3/6 [00:07<00:05,  1.86s/it]Running parallel differential expression (against reference):  67%|██████▋   | 4/6 [00:07<00:02,  1.31s/it]Running parallel differential expression (against reference):  83%|████████▎ | 5/6 [00:08<00:01,  1.01s/it]Running parallel differential expression (against reference): 100%|██████████| 6/6 [00:08<00:00,  1.41s/it]
+Running parallel differential expression (against reference):   0%|          | 0/6 [00:00<?, ?it/s]Running parallel differential expression (against reference):  17%|█▋        | 1/6 [00:03<00:17,  3.56s/it]Running parallel differential expression (against reference):  33%|███▎      | 2/6 [00:03<00:06,  1.56s/it]Running parallel differential expression (against reference):  50%|█████     | 3/6 [00:03<00:02,  1.07it/s]Running parallel differential expression (against reference):  67%|██████▋   | 4/6 [00:04<00:01,  1.61it/s]Running parallel differential expression (against reference):  83%|████████▎ | 5/6 [00:04<00:00,  2.18it/s]Running parallel differential expression (against reference): 100%|██████████| 6/6 [00:04<00:00,  1.42it/s]
+Identified 25 infinite log2 fold change values (real)
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 357.25it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 2105.57it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 2873.99it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 2938.42it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 3054.40it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 40407.55it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 26479.19it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 39568.91it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 51527.08it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 34606.47it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...: 100%|██████████| 5/5 [00:00<00:00, 47662.55it/s]
+Iterating over perturbations...:   0%|          | 0/5 [00:00<?, ?it/s]Iterating over perturbations...:  20%|██        | 1/5 [00:03<00:12,  3.06s/it]Iterating over perturbations...:  40%|████      | 2/5 [00:07<00:11,  3.92s/it]Iterating over perturbations...:  60%|██████    | 3/5 [00:08<00:05,  2.70s/it]Iterating over perturbations...:  80%|████████  | 4/5 [00:12<00:02,  2.91s/it]Iterating over perturbations...: 100%|██████████| 5/5 [00:15<00:00,  3.09s/it]Iterating over perturbations...: 100%|██████████| 5/5 [00:15<00:00,  3.09s/it]
+Traceback (most recent call last):
+  File "/home/hatch/workspace/hybrid-perturb-bench/scripts/run_cell_eval_check.py", line 94, in <module>
+    main()
+  File "/home/hatch/workspace/hybrid-perturb-bench/scripts/run_cell_eval_check.py", line 86, in main
+    results.to_csv(OUT / "cell_eval_results.csv", index=False)
+    ^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/hybrid-perturb-bench/.venv/lib/python3.12/site-packages/polars/dataframe/frame.py", line 13430, in __getattr__
+    return getattr_fallback(self, super(), name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/hybrid-perturb-bench/.venv/lib/python3.12/site-packages/polars/_utils/expired.py", line 87, in getattr_fallback
+    raise AttributeError(msg, name=name, obj=obj)
+AttributeError: 'DataFrame' object has no attribute 'to_csv'
+EXIT:1

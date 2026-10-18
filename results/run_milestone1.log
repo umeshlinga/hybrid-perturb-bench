@@ -7,24 +7,25 @@ train: 84; test: 21
 Streaming pseudobulk counts ...
 pseudobulk profiles: (237, 33694)
 eval gene set: 2000 genes
-ridge coverage: train 83/84, test 19/21
 Streaming control co-expression features ...
+Cached pseudobulk + features.
+ridge coverage: train 83/84, test 19/21
 Streaming split-half ceiling ...
-Traceback (most recent call last):
-  File "/home/hatch/workspace/hybrid-perturb-bench/scripts/run_milestone1.py", line 201, in <module>
-    main()
-  File "/home/hatch/workspace/hybrid-perturb-bench/scripts/run_milestone1.py", line 152, in main
-    counts_a, counts_b = split_half_counts_stream(adata_b, labels, half)
-                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/hatch/workspace/hybrid-perturb-bench/src/streaming.py", line 89, in split_half_counts_stream
-    ind = sp.csr_matrix(
-          ^^^^^^^^^^^^^^
-  File "/home/hatch/workspace/hybrid-perturb-bench/.venv/lib/python3.12/site-packages/scipy/sparse/_compressed.py", line 57, in __init__
-    coo = self._coo_container(arg1, shape=shape, dtype=dtype)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/hatch/workspace/hybrid-perturb-bench/.venv/lib/python3.12/site-packages/scipy/sparse/_coo.py", line 103, in __init__
-    self._check()
-  File "/home/hatch/workspace/hybrid-perturb-bench/.venv/lib/python3.12/site-packages/scipy/sparse/_coo.py", line 223, in _check
-    raise ValueError(f'axis {i} index {idx.max()} exceeds '
-ValueError: axis 1 index 972 exceeds matrix dimension 483
-EXIT:1
+
+=== AGGREGATE means (eval2000) ===
+metric              deg_overlap_at_k  mse_delta  mse_expr  pearson_delta  pearson_expr  rmse_delta
+method                                                                                            
+ceiling_split_half            0.6590     0.0014    0.0013         0.9167        0.9995      0.0360
+control_mean                  0.0210     0.0065    0.0065            NaN        0.9953      0.0758
+global_mean                   0.3314     0.0043    0.0043         0.5876        0.9968      0.0622
+linear_ridge                  0.3326     0.0045    0.0045         0.5785        0.9967      0.0632
+
+=== AGGREGATE means (all_genes) ===
+metric        deg_overlap_at_k  mse_delta  mse_expr  pearson_delta  pearson_expr  rmse_delta
+method                                                                                      
+control_mean            0.0029     0.0005    0.0005            NaN        0.9976      0.0215
+global_mean             0.3238     0.0004    0.0004         0.5683        0.9983      0.0180
+linear_ridge            0.3242     0.0004    0.0004         0.5627        0.9982      0.0182
+
+DONE. Results in /home/hatch/workspace/hybrid-perturb-bench/results
+EXIT:0

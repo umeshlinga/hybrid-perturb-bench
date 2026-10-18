@@ -2,3 +2,6 @@
 data/
 __pycache__/
 *.pyc
+_m1_cache.pkl
+results/_m1_cache.pkl
+results/cell_eval_check/*.h5ad

@@ -1,7 +1,14 @@
-# Build 2 (hybrid-perturb-bench) — milestone 1 isolated environment
+# Build 2 (hybrid-perturb-bench) — milestone 1 environment
 # Written 2026-10-11 from the kickoff plan (proactivity/prepared/2026-10-05/build2-kickoff.md).
 # Milestone 1 only: evaluation contract + three honest baselines on a bounded slice.
 # GEARS and the winners' hybrid come AFTER baselines reproduce.
+#
+# AS BUILT 2026-10-18 (milestone 1 run): no conda on this machine, so the
+# environment was created as a venv at .venv/ (Python 3.12.3) and installed
+# with pip; exact pins are frozen in requirements.txt. Installed and import-
+# verified: anndata 0.13.4, scanpy 1.12.4, scikit-learn 1.9.1, numpy 2.5.4,
+# pandas 3.0.6, scipy 1.18.1, torch 2.14.1+cpu, cell-eval 0.8.2 (Arc),
+# pertpy 1.4.0. The conda spec below is kept as the declarative equivalent.
 name: hybrid-perturb-bench
 channels:
   - conda-forge
