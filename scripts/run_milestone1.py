@@ -86,24 +86,43 @@ def main() -> None:
     train_perts = sorted(singles[i] for i in perm[n_test:])
     print(f"train: {len(train_perts)}; test: {len(test_perts)}", flush=True)
 
-    print("Streaming pseudobulk counts ...", flush=True)
-    counts_pb, cells_pb = pseudobulk_counts_stream(adata_b, labels)
-    real_pb = normalize_profiles(counts_pb)
-    print(f"pseudobulk profiles: {real_pb.shape}", flush=True)
+    cache_path = RESULTS / "_m1_cache.pkl"
+    if cache_path.exists():
+        import pickle
 
-    # Eval gene set: top-N by profile variance across control + train only.
-    var_profile = real_pb.loc[[CONTROL] + train_perts].var(axis=0)
-    eval_genes = sorted(var_profile.sort_values(ascending=False).head(N_EVAL_GENES).index)
-    print(f"eval gene set: {len(eval_genes)} genes", flush=True)
+        with open(cache_path, "rb") as fh:
+            cache = pickle.load(fh)
+        real_pb, eval_genes, feats = cache["real_pb"], cache["eval_genes"], cache["feats"]
+        cells_pb = cache["cells_pb"]
+        print(f"Loaded cache: real_pb {real_pb.shape}, {len(eval_genes)} eval genes", flush=True)
+    else:
+        print("Streaming pseudobulk counts ...", flush=True)
+        counts_pb, cells_pb = pseudobulk_counts_stream(adata_b, labels)
+        real_pb = normalize_profiles(counts_pb)
+        print(f"pseudobulk profiles: {real_pb.shape}", flush=True)
+
+        # Eval gene set: top-N by profile variance across control + train only.
+        var_profile = real_pb.loc[[CONTROL] + train_perts].var(axis=0)
+        eval_genes = sorted(var_profile.sort_values(ascending=False).head(N_EVAL_GENES).index)
+        print(f"eval gene set: {len(eval_genes)} genes", flush=True)
+
+        print("Streaming control co-expression features ...", flush=True)
+        feats = control_corr_features_stream(adata_b, labels, CONTROL, eval_genes).astype(np.float32)
+        import pickle
+
+        with open(cache_path, "wb") as fh:
+            pickle.dump(
+                {"real_pb": real_pb, "eval_genes": eval_genes, "feats": feats,
+                 "cells_pb": cells_pb},
+                fh,
+            )
+        print("Cached pseudobulk + features.", flush=True)
 
     # Ridge feasibility: target gene must be measured.
     var_set = set(var_names)
     ridge_train = [p for p in train_perts if p in var_set]
     ridge_test = [p for p in test_perts if p in var_set]
     print(f"ridge coverage: train {len(ridge_train)}/{len(train_perts)}, test {len(ridge_test)}/{len(test_perts)}", flush=True)
-
-    print("Streaming control co-expression features ...", flush=True)
-    feats = control_corr_features_stream(adata_b, labels, CONTROL, eval_genes)
 
     preds = {
         "control_mean": predict_control_mean(real_pb, test_perts, CONTROL),

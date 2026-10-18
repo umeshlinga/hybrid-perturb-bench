@@ -1,5 +1,30 @@
-Loading /home/hatch/workspace/hybrid-perturb-bench/data/NormanWeissman2019_filtered.h5ad ...
+Opening backed: /home/hatch/workspace/hybrid-perturb-bench/data/NormanWeissman2019_filtered.h5ad
 shape: (111445, 33694)
-obs columns: ['guide_id', 'read_count', 'UMI_count', 'coverage', 'gemgroup', 'good_coverage', 'number_of_cells', 'tissue_type', 'cell_line', 'cancer', 'disease', 'perturbation_type', 'celltype', 'organism', 'perturbation', 'nperts', 'ngenes', 'ncounts', 'percent_mito', 'percent_ribo']
-perturbation column: 'perturbation'; control label: 'control'
-X looks like raw counts -> normalize_total(1e4) + log1p
+control cells: 11855
+single perturbations (>= 30 cells): 105
+other perturbations deferred (combos / low-cell): 131
+train: 84; test: 21
+Streaming pseudobulk counts ...
+pseudobulk profiles: (237, 33694)
+eval gene set: 2000 genes
+ridge coverage: train 83/84, test 19/21
+Streaming control co-expression features ...
+Streaming split-half ceiling ...
+Traceback (most recent call last):
+  File "/home/hatch/workspace/hybrid-perturb-bench/scripts/run_milestone1.py", line 201, in <module>
+    main()
+  File "/home/hatch/workspace/hybrid-perturb-bench/scripts/run_milestone1.py", line 152, in main
+    counts_a, counts_b = split_half_counts_stream(adata_b, labels, half)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/hybrid-perturb-bench/src/streaming.py", line 89, in split_half_counts_stream
+    ind = sp.csr_matrix(
+          ^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/hybrid-perturb-bench/.venv/lib/python3.12/site-packages/scipy/sparse/_compressed.py", line 57, in __init__
+    coo = self._coo_container(arg1, shape=shape, dtype=dtype)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hatch/workspace/hybrid-perturb-bench/.venv/lib/python3.12/site-packages/scipy/sparse/_coo.py", line 103, in __init__
+    self._check()
+  File "/home/hatch/workspace/hybrid-perturb-bench/.venv/lib/python3.12/site-packages/scipy/sparse/_coo.py", line 223, in _check
+    raise ValueError(f'axis {i} index {idx.max()} exceeds '
+ValueError: axis 1 index 972 exceeds matrix dimension 483
+EXIT:1

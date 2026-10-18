@@ -87,7 +87,7 @@ def split_half_counts_stream(
             if not sel.any():
                 continue
             ind = sp.csr_matrix(
-                (np.ones(sel.sum()), (lab_k[sel], np.where(sel)[0])),
+                (np.ones(sel.sum()), (lab_k[sel], np.arange(sel.sum()))),
                 shape=(len(uniq), sel.sum()),
             )
             part = ind @ X[sel]
