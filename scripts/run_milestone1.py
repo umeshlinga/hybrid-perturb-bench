@@ -1,17 +1,26 @@
 """Milestone 1 runner: Norman 2019 smoke test — eval contract + 3 baselines.
 
+Memory-frugal design (the full 111k x 33.7k matrix + scanpy normalization
+OOMs this 7 GB machine): the h5ad is only ever read BACKED, in row chunks.
+Pseudobulk count profiles are accumulated by streaming; profiles are then
+library-normalized (1e4) + log1p AFTER aggregation (standard pseudobulk
+practice). See src/streaming.py.
+
 Pipeline (all choices fixed a priori, seed 0):
-  1. Load NormanWeissman2019_filtered.h5ad (scPerturb / Zenodo 10044268).
-  2. Detect perturbation column + control label; detect counts vs
-     log-normalized X (normalize_total 1e4 + log1p only if counts).
-  3. Keep control + SINGLE perturbations with >= 30 cells (combos deferred).
-  4. Headline split: hold out 20% of single perturbations entirely (seed 0).
-  5. Eval gene set: top-2000 HVGs from control+train cells only (headline);
-     all-gene metrics are also written as secondary rows.
-  6. Run baselines (a) control mean, (b) global perturbation mean,
-     (c) linear ridge on control co-expression features; score with
-     src/eval_contract.py; compute the split-half ceiling on test perts.
-  7. Write results/*.csv, results/split.json, predicted pseudobulk h5ads.
+  1. NormanWeissman2019_filtered.h5ad (scPerturb / Zenodo 10044268; GEO
+     GSE133344), K562 CRISPRa, obs['perturbation'], control label 'control'.
+  2. Keep control + SINGLE perturbations (nperts == 1) with >= 30 cells.
+     Combos (nperts == 2) are deferred this milestone.
+  3. Headline split: hold out 20% of single perturbations entirely (seed 0).
+  4. Eval gene set: top-2000 genes by variance of pseudobulk profiles across
+     control + TRAIN perturbations only (headline); all-gene metrics are
+     also written as secondary rows.
+  5. Baselines: (a) control mean, (b) global perturbation mean,
+     (c) linear ridge — features = control-cell co-expression profile of
+     the target gene (streamed, control cells only), alpha = 100 fixed.
+  6. Ceiling: disjoint split-half of test-perturbation + control cells,
+     Spearman-Brown corrected Pearson (mirrors Arc cell-eval --ceiling).
+  7. Writes results/*.csv, results/split.json, pseudobulk h5ad artifacts.
 """
 
 from __future__ import annotations
@@ -23,118 +32,89 @@ from pathlib import Path
 import anndata as ad
 import numpy as np
 import pandas as pd
-import scanpy as sc
-import scipy.sparse as sp
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from baselines import predict_control_mean, predict_global_mean, predict_linear_ridge
-from eval_contract import aggregate, ceiling_split_half, per_perturbation_metrics, pseudobulk
+from eval_contract import aggregate, ceiling_from_pseudobulks, per_perturbation_metrics
+from streaming import (
+    control_corr_features_stream,
+    normalize_profiles,
+    open_backed,
+    pseudobulk_counts_stream,
+    split_half_counts_stream,
+)
 
 DATA = ROOT / "data" / "NormanWeissman2019_filtered.h5ad"
 RESULTS = ROOT / "results"
 SEED = 0
 TEST_FRACTION = 0.20
 MIN_CELLS = 30
-N_HVG = 2000
+N_EVAL_GENES = 2000
 DEG_K = 50
-
-
-def detect_pert_column(adata) -> tuple[str, str]:
-    for cand in ["perturbation", "condition", "perturbation_name", "gene"]:
-        if cand in adata.obs.columns:
-            vals = adata.obs[cand].astype(str)
-            if (vals.str.lower() == "control").any():
-                return cand, vals[vals.str.lower() == "control"].iloc[0]
-    for col in adata.obs.columns:
-        vals = adata.obs[col].astype(str)
-        if (vals.str.lower() == "control").any() and vals.nunique() < 1000:
-            return col, vals[vals.str.lower() == "control"].iloc[0]
-    raise RuntimeError(f"No perturbation column with a control label. obs cols: {list(adata.obs.columns)}")
-
-
-def looks_like_counts(adata) -> bool:
-    X = adata.X[:2000]
-    vals = np.asarray(X.todense()).ravel() if sp.issparse(X) else np.asarray(X).ravel()
-    nz = vals[vals > 0]
-    if nz.size == 0:
-        return False
-    frac_int = np.mean(np.isclose(nz, np.round(nz)))
-    return bool(frac_int > 0.99 and vals.max() > 30)
+PERT_COL = "perturbation"
+CONTROL = "control"
 
 
 def main() -> None:
     RESULTS.mkdir(exist_ok=True)
-    print(f"Loading {DATA} ...", flush=True)
-    adata = ad.read_h5ad(DATA)
-    print(f"shape: {adata.shape}")
-    print(f"obs columns: {list(adata.obs.columns)}")
+    print(f"Opening backed: {DATA}", flush=True)
+    adata_b = open_backed(DATA)
+    print(f"shape: {adata_b.shape}", flush=True)
+    labels = adata_b.obs[PERT_COL].astype(str).to_numpy()
+    nperts = adata_b.obs["nperts"].to_numpy()
+    var_names = [str(g) for g in adata_b.var_names]
 
-    pert_col, control_label = detect_pert_column(adata)
-    print(f"perturbation column: {pert_col!r}; control label: {control_label!r}")
-
-    if looks_like_counts(adata):
-        print("X looks like raw counts -> normalize_total(1e4) + log1p")
-        sc.pp.normalize_total(adata, target_sum=1e4)
-        sc.pp.log1p(adata)
-    else:
-        print("X looks log-normalized already -> using as-is")
-
-    labels = adata.obs[pert_col].astype(str)
-    counts = labels.value_counts()
-    singles = [
+    counts_all = pd.Series(labels).value_counts()
+    singles = sorted(
         p
-        for p in counts.index
-        if p != control_label and "+" not in p and counts[p] >= MIN_CELLS
-    ]
-    combos = [p for p in counts.index if "+" in p]
-    print(f"control cells: {counts[control_label]}")
-    print(f"single perturbations with >= {MIN_CELLS} cells: {len(singles)}")
-    print(f"combo perturbations (deferred this milestone): {len(combos)}")
+        for p in counts_all.index
+        if p != CONTROL
+        and counts_all[p] >= MIN_CELLS
+        and int(pd.Series(nperts[labels == p]).iloc[0]) == 1
+    )
+    n_combos = int(sum(1 for p in counts_all.index if p != CONTROL and p not in singles))
+    print(f"control cells: {counts_all[CONTROL]}", flush=True)
+    print(f"single perturbations (>= {MIN_CELLS} cells): {len(singles)}", flush=True)
+    print(f"other perturbations deferred (combos / low-cell): {n_combos}", flush=True)
 
     rng = np.random.default_rng(SEED)
-    singles_sorted = sorted(singles)
-    perm = rng.permutation(len(singles_sorted))
-    n_test = max(10, int(round(TEST_FRACTION * len(singles_sorted))))
-    test_perts = sorted(singles_sorted[i] for i in perm[:n_test])
-    train_perts = sorted(singles_sorted[i] for i in perm[n_test:])
-    print(f"train perturbations: {len(train_perts)}; test perturbations: {len(test_perts)}")
+    perm = rng.permutation(len(singles))
+    n_test = max(10, int(round(TEST_FRACTION * len(singles))))
+    test_perts = sorted(singles[i] for i in perm[:n_test])
+    train_perts = sorted(singles[i] for i in perm[n_test:])
+    print(f"train: {len(train_perts)}; test: {len(test_perts)}", flush=True)
 
-    keep = labels.isin([control_label] + singles_sorted)
-    adata = adata[keep].copy()
+    print("Streaming pseudobulk counts ...", flush=True)
+    counts_pb, cells_pb = pseudobulk_counts_stream(adata_b, labels)
+    real_pb = normalize_profiles(counts_pb)
+    print(f"pseudobulk profiles: {real_pb.shape}", flush=True)
 
-    # HVGs from control + train cells ONLY (no test-perturbation information).
-    train_mask = adata.obs[pert_col].astype(str).isin([control_label] + train_perts)
-    sub = adata[train_mask].copy()
-    sc.pp.highly_variable_genes(sub, n_top_genes=N_HVG, flavor="seurat", subset=False)
-    hvg = sorted(sub.var_names[sub.var["highly_variable"]].astype(str))
-    print(f"HVG eval gene set: {len(hvg)} genes")
+    # Eval gene set: top-N by profile variance across control + train only.
+    var_profile = real_pb.loc[[CONTROL] + train_perts].var(axis=0)
+    eval_genes = sorted(var_profile.sort_values(ascending=False).head(N_EVAL_GENES).index)
+    print(f"eval gene set: {len(eval_genes)} genes", flush=True)
 
-    real_pb = pseudobulk(adata, pert_col)
-
-    # Restrict ridge features/targets to perturbations whose target gene exists.
-    var_set = set(adata.var_names.astype(str))
+    # Ridge feasibility: target gene must be measured.
+    var_set = set(var_names)
     ridge_train = [p for p in train_perts if p in var_set]
     ridge_test = [p for p in test_perts if p in var_set]
-    if len(ridge_test) < len(test_perts) or len(ridge_train) < len(train_perts):
-        print(
-            f"ridge: dropped {len(train_perts) - len(ridge_train)} train / "
-            f"{len(test_perts) - len(ridge_test)} test perts with target gene absent"
-        )
+    print(f"ridge coverage: train {len(ridge_train)}/{len(train_perts)}, test {len(ridge_test)}/{len(test_perts)}", flush=True)
+
+    print("Streaming control co-expression features ...", flush=True)
+    feats = control_corr_features_stream(adata_b, labels, CONTROL, eval_genes)
 
     preds = {
-        "control_mean": predict_control_mean(real_pb, test_perts, control_label),
-        "global_mean": predict_global_mean(real_pb, train_perts, test_perts, control_label),
+        "control_mean": predict_control_mean(real_pb, test_perts, CONTROL),
+        "global_mean": predict_global_mean(real_pb, train_perts, test_perts, CONTROL),
         "linear_ridge": predict_linear_ridge(
-            adata, real_pb, ridge_train, ridge_test,
-            pert_col=pert_col, control_label=control_label, genes=hvg,
+            real_pb, ridge_train, ridge_test, feats, CONTROL, genes=eval_genes
         ),
     }
 
-    # Save predicted + real pseudobulk AnnData (the contract's artifacts).
     def to_anndata(pb: pd.DataFrame, perts: list[str]) -> ad.AnnData:
-        sub = pb.loc[[control_label] + perts]
+        sub = pb.loc[[CONTROL] + perts]
         out = ad.AnnData(X=sub.to_numpy(dtype=np.float32))
         out.obs_names = sub.index.astype(str)
         out.var_names = sub.columns.astype(str)
@@ -148,8 +128,8 @@ def main() -> None:
 
     per_rows, agg_rows = [], []
     for name, pb in preds.items():
-        for gene_set_name, gene_list in [("hvg2000", hvg), ("all_genes", None)]:
-            m = per_perturbation_metrics(pb, real_pb, control_label, DEG_K, gene_list)
+        for gene_set_name, gene_list in [("eval2000", eval_genes), ("all_genes", None)]:
+            m = per_perturbation_metrics(pb, real_pb, CONTROL, DEG_K, gene_list)
             m = m.reset_index(names="perturbation")
             m.insert(0, "gene_set", gene_set_name)
             m.insert(0, "method", name)
@@ -160,17 +140,25 @@ def main() -> None:
             a.insert(0, "method", name)
             agg_rows.append(a)
 
-    # Ceiling on test perturbations (control + test cells only), HVG gene set.
-    test_mask = adata.obs[pert_col].astype(str).isin([control_label] + test_perts)
-    ceil_per, ceil_agg = ceiling_split_half(
-        adata[test_mask], pert_col, control_label, DEG_K, hvg, seed=SEED
-    )
+    print("Streaming split-half ceiling ...", flush=True)
+    rng = np.random.default_rng(SEED)
+    half = np.full(len(labels), -1, dtype=int)
+    for pert in [CONTROL] + test_perts:
+        idx = np.where(labels == pert)[0]
+        rng.shuffle(idx)
+        h = len(idx) // 2
+        half[idx[:h]] = 0
+        half[idx[h : 2 * h]] = 1
+    counts_a, counts_b = split_half_counts_stream(adata_b, labels, half)
+    pb_a = normalize_profiles(counts_a)
+    pb_b = normalize_profiles(counts_b)
+    ceil_per, ceil_agg = ceiling_from_pseudobulks(pb_a, pb_b, CONTROL, DEG_K, eval_genes)
     ceil_per = ceil_per.reset_index(names="perturbation")
-    ceil_per.insert(0, "gene_set", "hvg2000")
+    ceil_per.insert(0, "gene_set", "eval2000")
     ceil_per.insert(0, "method", "ceiling_split_half")
     per_rows.append(ceil_per)
     ceil_agg = ceil_agg.reset_index(names="metric")
-    ceil_agg.insert(0, "gene_set", "hvg2000")
+    ceil_agg.insert(0, "gene_set", "eval2000")
     ceil_agg.insert(0, "method", "ceiling_split_half")
     agg_rows.append(ceil_agg)
 
@@ -184,31 +172,29 @@ def main() -> None:
         "test_fraction": TEST_FRACTION,
         "min_cells": MIN_CELLS,
         "deg_k": DEG_K,
-        "n_hvg": len(hvg),
-        "control_label": control_label,
-        "pert_column": pert_col,
+        "n_eval_genes": len(eval_genes),
+        "eval_gene_selection": "top-2000 by pseudobulk profile variance across control+train perturbations",
+        "control_label": CONTROL,
+        "pert_column": PERT_COL,
         "train_perturbations": train_perts,
         "test_perturbations": test_perts,
-        "n_combos_deferred": len(combos),
+        "ridge_train_perturbations": ridge_train,
+        "ridge_test_perturbations": ridge_test,
+        "n_other_perturbations_deferred": n_combos,
+        "cells_per_perturbation": {p: int(cells_pb[p]) for p in [CONTROL] + singles},
     }
     (RESULTS / "split.json").write_text(json.dumps(split, indent=2))
 
-    pd.set_option("display.width", 200)
-    print("\n=== AGGREGATE (hvg2000, headline) ===")
-    print(
-        agg_df[agg_df["gene_set"] == "hvg2000"]
-        .pivot_table(index="method", columns="metric", values="mean")
-        .round(4)
-        .to_string()
-    )
-    print("\n=== AGGREGATE (all_genes) ===")
-    print(
-        agg_df[agg_df["gene_set"] == "all_genes"]
-        .pivot_table(index="method", columns="metric", values="mean")
-        .round(4)
-        .to_string()
-    )
-    print("\nWrote results to", RESULTS)
+    pd.set_option("display.width", 250)
+    for gs in ["eval2000", "all_genes"]:
+        print(f"\n=== AGGREGATE means ({gs}) ===", flush=True)
+        print(
+            agg_df[agg_df["gene_set"] == gs]
+            .pivot_table(index="method", columns="metric", values="mean")
+            .round(4)
+            .to_string()
+        )
+    print("\nDONE. Results in", RESULTS, flush=True)
 
 
 if __name__ == "__main__":

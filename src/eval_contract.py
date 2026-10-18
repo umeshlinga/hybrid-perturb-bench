@@ -113,6 +113,28 @@ def spearman_brown(r: float) -> float:
     return float(2 * r / (1 + r)) if pd.notna(r) else np.nan
 
 
+def ceiling_from_pseudobulks(
+    pb_real: pd.DataFrame,
+    pb_pred: pd.DataFrame,
+    control_label: str = "control",
+    deg_k: int = 50,
+    genes: list[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Ceiling scoring from two split-half pseudobulk profile frames.
+
+    Returns (per_perturbation_df, aggregate_df); aggregate Pearson columns
+    are Spearman-Brown corrected.
+    """
+    per_pert = per_perturbation_metrics(pb_pred, pb_real, control_label, deg_k, genes)
+    agg = aggregate(per_pert)
+    for col in ["pearson_delta", "pearson_expr"]:
+        if col in agg.index:
+            agg.loc[col, "mean"] = spearman_brown(agg.loc[col, "mean"])
+            agg.loc[col, "median"] = spearman_brown(agg.loc[col, "median"])
+    agg["spearman_brown_corrected"] = agg.index.isin(["pearson_delta", "pearson_expr"])
+    return per_pert, agg
+
+
 def ceiling_split_half(
     adata,
     pert_col: str,
@@ -121,7 +143,7 @@ def ceiling_split_half(
     genes: list[str] | None = None,
     seed: int = 0,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Real-data ceiling: disjoint split-half self-evaluation.
+    """Real-data ceiling: disjoint split-half self-evaluation (cell-level API).
 
     For every perturbation (and the control), cells are split into two
     disjoint halves. Pseudobulk of half A = 'real', half B = 'prediction'.
@@ -139,11 +161,4 @@ def ceiling_split_half(
         idx_b.extend(idx[half : 2 * half])
     pb_a = pseudobulk(adata[np.sort(idx_a)], pert_col)
     pb_b = pseudobulk(adata[np.sort(idx_b)], pert_col)
-    per_pert = per_perturbation_metrics(pb_b, pb_a, control_label, deg_k, genes)
-    agg = aggregate(per_pert)
-    for col in ["pearson_delta", "pearson_expr"]:
-        if col in agg.index:
-            agg.loc[col, "mean"] = spearman_brown(agg.loc[col, "mean"])
-            agg.loc[col, "median"] = spearman_brown(agg.loc[col, "median"])
-    agg["spearman_brown_corrected"] = agg.index.isin(["pearson_delta", "pearson_expr"])
-    return per_pert, agg
+    return ceiling_from_pseudobulks(pb_a, pb_b, control_label, deg_k, genes)

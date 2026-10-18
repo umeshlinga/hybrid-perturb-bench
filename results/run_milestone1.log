@@ -1,0 +1,5 @@
+Loading /home/hatch/workspace/hybrid-perturb-bench/data/NormanWeissman2019_filtered.h5ad ...
+shape: (111445, 33694)
+obs columns: ['guide_id', 'read_count', 'UMI_count', 'coverage', 'gemgroup', 'good_coverage', 'number_of_cells', 'tissue_type', 'cell_line', 'cancer', 'disease', 'perturbation_type', 'celltype', 'organism', 'perturbation', 'nperts', 'ngenes', 'ncounts', 'percent_mito', 'percent_ribo']
+perturbation column: 'perturbation'; control label: 'control'
+X looks like raw counts -> normalize_total(1e4) + log1p
