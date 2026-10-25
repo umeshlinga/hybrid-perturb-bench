@@ -5,3 +5,7 @@ __pycache__/
 _m1_cache.pkl
 results/_m1_cache.pkl
 results/cell_eval_check/*.h5ad
+.venv-gears/
+gears_data/
+results/*.h5ad
+*.log

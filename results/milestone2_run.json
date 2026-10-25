@@ -1,0 +1,23 @@
+{
+  "seed": 0,
+  "train_perturbations": 84,
+  "test_perturbations": 21,
+  "n_combos": 131,
+  "ridge_combo_coverage": 129,
+  "esm_model": "esm2_t6_8M_UR50D",
+  "esm_genes_available": 105,
+  "esm_missing_genes": [],
+  "hybrid_config": {
+    "delta_pca_components": 40,
+    "esm_pca": 64,
+    "coex_pca": 32,
+    "hidden": 128,
+    "dropout": 0.25,
+    "epochs": 500,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "retrieval_topk": 8,
+    "retrieval_temp": 0.1
+  },
+  "note": "Full runner killed twice during the combo-ceiling stream (machine restart, then memory pressure); metrics before the stream were checkpointed by the runner and the ceiling was completed by scripts/run_combo_ceiling.py."
+}

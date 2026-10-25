@@ -1,0 +1,66 @@
+{
+  "model": "esm2_t6_8M_UR50D",
+  "embedding_dim": 320,
+  "n_genes_embedded": 105,
+  "genes_without_sequence": [],
+  "truncated_sequences": [
+    {
+      "gene": "ARID1A",
+      "length": 2285
+    },
+    {
+      "gene": "BCORL1",
+      "length": 1785
+    },
+    {
+      "gene": "COL1A1",
+      "length": 1464
+    },
+    {
+      "gene": "COL2A1",
+      "length": 1487
+    },
+    {
+      "gene": "ELMSAN1",
+      "length": 1045
+    },
+    {
+      "gene": "KIAA1804",
+      "length": 1036
+    },
+    {
+      "gene": "KMT2A",
+      "length": 3969
+    },
+    {
+      "gene": "MAML2",
+      "length": 1156
+    },
+    {
+      "gene": "PRTG",
+      "length": 1150
+    },
+    {
+      "gene": "PTPN13",
+      "length": 2485
+    },
+    {
+      "gene": "RREB1",
+      "length": 1687
+    },
+    {
+      "gene": "STIL",
+      "length": 1287
+    },
+    {
+      "gene": "TSC22D1",
+      "length": 1073
+    },
+    {
+      "gene": "ZNF318",
+      "length": 2279
+    }
+  ],
+  "pooling": "mean of last-layer token representations, BOS/EOS excluded",
+  "max_len": 1022
+}
