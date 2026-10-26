@@ -1,3 +1,4 @@
+**Live results:** https://umeshlinga.github.io/evidra/
 # hybrid-perturb-bench — Build 2 (Weeks 4–7, starts after Build 1 ships)
 
 Hybrid virtual-cell perturbation benchmark — "beat the mean, honestly."
